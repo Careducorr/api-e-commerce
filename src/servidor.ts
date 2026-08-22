@@ -9,10 +9,12 @@ import { compraRoutes } from './routes/compra.routes';
 import { enderecoRoutes } from './routes/usuario.endereco.routes';
 import { relatorioRoutes } from './routes/relatorio.routes';
 import { config } from 'dotenv';
+import cors from "cors";
 
 config();
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 app.use('/usuario', userRoutes);
