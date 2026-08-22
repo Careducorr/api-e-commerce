@@ -129,11 +129,15 @@ class UserRepository {
     }
 
     login(request: Request, response: Response) {
-        const { email, senha, acesso } = request.body;
+
+        const { email, senha } = request.body;
 
         pool.getConnection((err: any, connection: any) => {
 
-            // Erro ao conectar no MySQL
+            // ==========================================
+            // ERRO AO CONECTAR NO MYSQL
+            // ==========================================
+
             if (err) {
                 return response.status(500).json({
                     sucesso: false,
@@ -142,12 +146,23 @@ class UserRepository {
                 });
             }
 
+
+            // ==========================================
+            // BUSCA USUÁRIO PELO E-MAIL
+            // ==========================================
+
             connection.query(
                 'SELECT * FROM usuarios WHERE email = ?',
                 [email],
+
                 (error: any, result: any) => {
 
                     connection.release();
+
+
+                    // ==========================================
+                    // ERRO NA CONSULTA
+                    // ==========================================
 
                     if (error) {
                         return response.status(400).json({
@@ -157,6 +172,11 @@ class UserRepository {
                         });
                     }
 
+
+                    // ==========================================
+                    // USUÁRIO NÃO ENCONTRADO
+                    // ==========================================
+
                     if (result.length === 0) {
                         return response.status(404).json({
                             sucesso: false,
@@ -164,43 +184,86 @@ class UserRepository {
                         });
                     }
 
+
                     const usuario = result[0];
 
-                    compare(senha, usuario.senha, (err, senhaCorreta) => {
 
-                        if (err) {
-                            return response.status(500).json({
-                                sucesso: false,
-                                mensagem: 'Erro ao verificar a senha'
+                    // ==========================================
+                    // COMPARA SENHA
+                    // ==========================================
+
+                    compare(
+                        senha,
+                        usuario.senha,
+
+                        (err, senhaCorreta) => {
+
+                            if (err) {
+                                return response.status(500).json({
+                                    sucesso: false,
+                                    mensagem: 'Erro ao verificar a senha'
+                                });
+                            }
+
+
+                            if (!senhaCorreta) {
+                                return response.status(401).json({
+                                    sucesso: false,
+                                    mensagem: 'Senha incorreta'
+                                });
+                            }
+
+
+                            // ==========================================
+                            // GERA JWT
+                            // ==========================================
+
+                            const token = sign(
+                                {
+                                    id_usuario: usuario.id_usuario,
+                                    email: usuario.email,
+                                    acesso: usuario.acesso
+                                },
+
+                                process.env.SECRET as string,
+
+                                {
+                                    expiresIn: "1d"
+                                }
+                            );
+
+
+                            // ==========================================
+                            // RETORNA LOGIN + DADOS DO USUÁRIO
+                            // ==========================================
+
+                            return response.status(200).json({
+
+                                sucesso: true,
+
+                                mensagem: 'Login realizado com sucesso',
+
+                                token,
+
+                                usuario: {
+                                    id_usuario: usuario.id_usuario,
+                                    nome: usuario.nome,
+                                    email: usuario.email,
+                                    acesso: usuario.acesso,
+                                    foto: usuario.foto,
+                                    celular: usuario.celular
+                                }
+
                             });
+
                         }
+                    );
 
-                        if (!senhaCorreta) {
-                            return response.status(401).json({
-                                sucesso: false,
-                                mensagem: 'Senha incorreta'
-                            });
-                        }
-
-                        const token = sign(
-                            {
-                                id_usuario: usuario.id_usuario,
-                                email: usuario.email,
-                                acesso: usuario.acesso
-                            },
-                            process.env.SECRET as string,
-                            { expiresIn: "1d" }
-                        );
-
-                        return response.status(200).json({
-                            sucesso: true,
-                            mensagem: 'Login realizado com sucesso',
-                            token
-                        });
-                    });
                 }
             );
+
         });
+
     }
 
     getPerfil(request: Request, response: Response) {
