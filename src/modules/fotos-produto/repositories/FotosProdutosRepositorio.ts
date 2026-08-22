@@ -1,26 +1,18 @@
 import { pool } from '../../../mysql';
 import { Request, Response } from 'express';
+import cloudinary from '../../../cloudinary';
 
 class FotosProdutoRepository {
 
     cadastroFoto(request: Request, response: Response) {
 
-        const { url, id_produto, id_cor } = request.body;
+        const { id_produto, id_cor } = request.body;
 
-        // Validação da URL
-        if (!url || typeof url !== 'string') {
+        // Verifica se uma imagem foi enviada
+        if (!request.file) {
             return response.status(400).json({
                 sucesso: false,
-                mensagem: 'Informe uma URL válida'
-            });
-        }
-
-        const urlNormalizada = url.trim();
-
-        if (urlNormalizada.length === 0) {
-            return response.status(400).json({
-                sucesso: false,
-                mensagem: 'A URL não pode estar vazia'
+                mensagem: 'Envie uma imagem'
             });
         }
 
@@ -65,7 +57,7 @@ class FotosProdutoRepository {
              ORDER BY ordem ASC`,
                 [id_produto, id_cor],
 
-                (error: any, result: any[]) => {
+                async (error: any, result: any[]) => {
 
                     if (error) {
                         connection.release();
@@ -99,39 +91,81 @@ class FotosProdutoRepository {
                         });
                     }
 
-                    // Cadastra a foto
-                    connection.query(
-                        `INSERT INTO fotos_produto
-                        (url, ordem, id_produto, id_cor)
-                     VALUES
-                        (?, ?, ?, ?)`,
-                        [
-                            urlNormalizada,
-                            ordem,
-                            Number(id_produto),
-                            Number(id_cor)
-                        ],
+                    try {
 
-                        (error: any, result: any) => {
+                        // Envia a imagem para o Cloudinary
+                        const uploadResult =
+                            await new Promise<any>((resolve, reject) => {
 
-                            connection.release();
+                                const uploadStream =
+                                    cloudinary.uploader.upload_stream(
+                                        {
+                                            folder: 'e-commerce/produtos'
+                                        },
+                                        (error, result) => {
 
-                            if (error) {
-                                return response.status(500).json({
-                                    sucesso: false,
-                                    mensagem: 'Erro ao cadastrar foto',
-                                    erro: error.message
-                                });
-                            }
+                                            if (error) {
+                                                reject(error);
+                                            } else {
+                                                resolve(result);
+                                            }
 
-                            return response.status(201).json({
-                                sucesso: true,
-                                mensagem: 'Foto cadastrada com sucesso',
-                                id_foto: result.insertId,
-                                ordem: ordem
+                                        }
+                                    );
+
+                                uploadStream.end(request.file!.buffer);
+
                             });
-                        }
-                    );
+
+                        const url = uploadResult.secure_url;
+
+                        // Salva a URL no banco
+                        connection.query(
+                            `INSERT INTO fotos_produto
+                        (url, ordem, id_produto, id_cor)
+                        VALUES (?, ?, ?, ?)`,
+                            [
+                                url,
+                                ordem,
+                                Number(id_produto),
+                                Number(id_cor)
+                            ],
+
+                            (error: any, result: any) => {
+
+                                connection.release();
+
+                                if (error) {
+                                    return response.status(500).json({
+                                        sucesso: false,
+                                        mensagem: 'Erro ao cadastrar foto',
+                                        erro: error.message
+                                    });
+                                }
+
+                                return response.status(201).json({
+                                    sucesso: true,
+                                    mensagem: 'Foto cadastrada com sucesso',
+                                    id_foto: result.insertId,
+                                    ordem: ordem,
+                                    url: url
+                                });
+
+                            }
+                        );
+
+                    } catch (error: any) {
+
+                        connection.release();
+
+                        return response.status(500).json({
+                            sucesso: false,
+                            mensagem: 'Erro ao enviar imagem para o Cloudinary',
+                            erro: error.message
+                        });
+
+                    }
+
                 }
             );
         });
