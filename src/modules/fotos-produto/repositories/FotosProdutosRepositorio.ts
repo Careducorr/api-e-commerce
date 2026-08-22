@@ -1,0 +1,358 @@
+import { pool } from '../../../mysql';
+import { Request, Response } from 'express';
+
+class FotosProdutoRepository {
+
+    cadastroFoto(request: Request, response: Response) {
+
+        const { url, id_produto, id_cor } = request.body;
+
+        // Validação da URL
+        if (!url || typeof url !== 'string') {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'Informe uma URL válida'
+            });
+        }
+
+        const urlNormalizada = url.trim();
+
+        if (urlNormalizada.length === 0) {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'A URL não pode estar vazia'
+            });
+        }
+
+        // Validação do id_produto
+        if (
+            id_produto === undefined ||
+            !Number.isInteger(Number(id_produto))
+        ) {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'O id_produto não é válido'
+            });
+        }
+
+        // Validação do id_cor
+        if (
+            id_cor === undefined ||
+            !Number.isInteger(Number(id_cor))
+        ) {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'O id_cor não é válido'
+            });
+        }
+
+        pool.getConnection((error, connection) => {
+
+            if (error) {
+                return response.status(500).json({
+                    sucesso: false,
+                    mensagem: 'Erro ao conectar ao banco',
+                    erro: error.message
+                });
+            }
+
+            // Busca as ordens já utilizadas
+            connection.query(
+                `SELECT ordem
+             FROM fotos_produto
+             WHERE id_produto = ?
+             AND id_cor = ?
+             ORDER BY ordem ASC`,
+                [id_produto, id_cor],
+
+                (error: any, result: any[]) => {
+
+                    if (error) {
+                        connection.release();
+
+                        return response.status(500).json({
+                            sucesso: false,
+                            mensagem: 'Erro ao verificar ordem das fotos',
+                            erro: error.message
+                        });
+                    }
+
+                    // Pega somente as ordens existentes
+                    const ordensUsadas = result.map(
+                        (foto: any) => Number(foto.ordem)
+                    );
+
+                    // Procura a primeira ordem disponível
+                    let ordem = 1;
+
+                    while (ordensUsadas.includes(ordem)) {
+                        ordem++;
+                    }
+
+                    // Limite máximo de 5 fotos
+                    if (ordem > 5) {
+                        connection.release();
+
+                        return response.status(400).json({
+                            sucesso: false,
+                            mensagem: 'Essa cor já possui 5 fotos'
+                        });
+                    }
+
+                    // Cadastra a foto
+                    connection.query(
+                        `INSERT INTO fotos_produto
+                        (url, ordem, id_produto, id_cor)
+                     VALUES
+                        (?, ?, ?, ?)`,
+                        [
+                            urlNormalizada,
+                            ordem,
+                            Number(id_produto),
+                            Number(id_cor)
+                        ],
+
+                        (error: any, result: any) => {
+
+                            connection.release();
+
+                            if (error) {
+                                return response.status(500).json({
+                                    sucesso: false,
+                                    mensagem: 'Erro ao cadastrar foto',
+                                    erro: error.message
+                                });
+                            }
+
+                            return response.status(201).json({
+                                sucesso: true,
+                                mensagem: 'Foto cadastrada com sucesso',
+                                id_foto: result.insertId,
+                                ordem: ordem
+                            });
+                        }
+                    );
+                }
+            );
+        });
+    }
+
+    //substituir uma foto
+    editarFoto(request: Request, response: Response) {
+
+        const { id_foto } = request.params;
+        const { url } = request.body;
+
+        // Validação do id_foto
+        if (
+            id_foto === undefined ||
+            id_foto === null ||
+            !Number.isInteger(Number(id_foto))
+        ) {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'O id_foto não é válido'
+            });
+        }
+
+        // Validação da URL
+        if (!url || typeof url !== 'string') {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'Informe uma URL válida'
+            });
+        }
+
+        const urlNormalizada = url.trim();
+
+        if (urlNormalizada.length === 0) {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'A URL não pode estar vazia'
+            });
+        }
+
+        pool.getConnection((error, connection) => {
+
+            if (error) {
+                return response.status(500).json({
+                    sucesso: false,
+                    mensagem: 'Erro ao conectar ao banco',
+                    erro: error.message
+                });
+            }
+
+            connection.query(
+                `
+            UPDATE fotos_produto
+            SET url = ?
+            WHERE id_foto = ?
+            `,
+                [
+                    urlNormalizada,
+                    Number(id_foto)
+                ],
+
+                (error: any, result: any) => {
+
+                    connection.release();
+
+                    if (error) {
+                        return response.status(500).json({
+                            sucesso: false,
+                            mensagem: 'Erro ao editar foto',
+                            erro: error.message
+                        });
+                    }
+
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({
+                            sucesso: false,
+                            mensagem: 'Foto não encontrada'
+                        });
+                    }
+
+                    return response.status(200).json({
+                        sucesso: true,
+                        mensagem: 'Foto substituída com sucesso',
+                        id_foto: Number(id_foto),
+                        url: urlNormalizada
+                    });
+                }
+            );
+        });
+    };
+
+    //ver a foto
+    getFotos(request: Request, response: Response) {
+
+        const { id_produto, id_cor } = request.query;
+
+        if (
+            !id_produto ||
+            !Number.isInteger(Number(id_produto))
+        ) {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'O id_produto não é válido'
+            });
+        }
+
+        if (
+            !id_cor ||
+            !Number.isInteger(Number(id_cor))
+        ) {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'O id_cor não é válido'
+            });
+        }
+
+        pool.getConnection((error, connection) => {
+
+            if (error) {
+                return response.status(500).json({
+                    sucesso: false,
+                    mensagem: 'Erro ao conectar ao banco',
+                    erro: error.message
+                });
+            }
+
+            connection.query(
+                `SELECT *
+             FROM fotos_produto
+             WHERE id_produto = ?
+             AND id_cor = ?
+             ORDER BY ordem ASC`,
+                [id_produto, id_cor],
+
+                (error: any, result: any[]) => {
+
+                    connection.release();
+
+                    if (error) {
+                        return response.status(500).json({
+                            sucesso: false,
+                            mensagem: 'Erro ao buscar fotos',
+                            erro: error.message
+                        });
+                    }
+
+                    if (result.length === 0) {
+                        return response.status(404).json({
+                            sucesso: false,
+                            mensagem: 'Nenhuma foto encontrada'
+                        });
+                    }
+
+                    return response.status(200).json({
+                        sucesso: true,
+                        mensagem: 'Fotos encontradas',
+                        fotos: result
+                    });
+                }
+            );
+        });
+    }
+
+    //deletar foto
+    deletarFoto(request: Request, response: Response) {
+
+        const { id_foto } = request.params;
+
+        if (
+            !id_foto ||
+            !Number.isInteger(Number(id_foto))
+        ) {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'O id_foto não é válido'
+            });
+        }
+
+        pool.getConnection((error, connection) => {
+
+            if (error) {
+                return response.status(500).json({
+                    sucesso: false,
+                    mensagem: 'Erro ao conectar ao banco',
+                    erro: error.message
+                });
+            }
+
+            connection.query(
+                `DELETE FROM fotos_produto
+             WHERE id_foto = ?`,
+                [id_foto],
+
+                (error: any, result: any) => {
+
+                    connection.release();
+
+                    if (error) {
+                        return response.status(500).json({
+                            sucesso: false,
+                            mensagem: 'Erro ao excluir foto',
+                            erro: error.message
+                        });
+                    }
+
+                    if (result.affectedRows === 0) {
+                        return response.status(404).json({
+                            sucesso: false,
+                            mensagem: 'Foto não encontrada'
+                        });
+                    }
+
+                    return response.status(200).json({
+                        sucesso: true,
+                        mensagem: 'Foto excluída com sucesso'
+                    });
+                }
+            );
+        });
+    }
+
+}
+
+export { FotosProdutoRepository };
