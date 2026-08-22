@@ -36,6 +36,7 @@ fotosRoutes.patch(
     '/editar-foto/:id_foto',
     authMiddleware,
     somenteAdmin,
+    upload.single('foto'),
     (request, response) => {
         fotosProdutoRepository.editarFoto(request, response);
     }
