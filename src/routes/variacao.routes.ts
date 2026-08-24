@@ -28,7 +28,7 @@ variacaoRoutes.patch(
    });
 
 variacaoRoutes.get(
-   '/variacao-produto/:id_produto',
+   '/variacao-produto/:id_produto/:id_cor',
    (request, response) => {
       return variacaoRepository.getVariacoesPorProduto(request, response)
    }

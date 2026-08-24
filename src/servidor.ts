@@ -11,8 +11,6 @@ import { relatorioRoutes } from './routes/relatorio.routes';
 import { config } from 'dotenv';
 import cors from "cors";
 
-console.log("1 - servidor.ts iniciou");
-
 config();
 const app = express();
 
@@ -28,8 +26,6 @@ app.use('/produto', corRoutes);
 app.use('/compra', compraRoutes);
 app.use('/usuario', enderecoRoutes);
 app.use('/relatorio', relatorioRoutes);
-
-console.log("2 - chegou antes do app.listen")
 
 app.listen(4000, () => {
     console.log('Servidor rodando na porta 4000');

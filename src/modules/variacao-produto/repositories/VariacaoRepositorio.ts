@@ -260,12 +260,12 @@ class VariacaoRepository {
         });
     }
 
-    //buscando as variações de um produto
+    // buscando as variações de um produto e de uma cor específica
     getVariacoesPorProduto(request: Request, response: Response) {
 
-        const { id_produto } = request.params;
+        const { id_produto, id_cor } = request.params;
 
-        // Validação do ID
+        // Validação dos IDs
         if (
             !id_produto ||
             !Number.isInteger(Number(id_produto)) ||
@@ -274,6 +274,17 @@ class VariacaoRepository {
             return response.status(400).json({
                 sucesso: false,
                 mensagem: 'O id_produto não é válido'
+            });
+        }
+
+        if (
+            !id_cor ||
+            !Number.isInteger(Number(id_cor)) ||
+            Number(id_cor) <= 0
+        ) {
+            return response.status(400).json({
+                sucesso: false,
+                mensagem: 'O id_cor não é válido'
             });
         }
 
@@ -288,11 +299,33 @@ class VariacaoRepository {
             }
 
             connection.query(
-                `SELECT *
-             FROM variacao_produto
-             WHERE id_produto = ?
-             ORDER BY tamanho ASC`,
-                [Number(id_produto)],
+                `SELECT 
+                vp.id_variacao_produto,
+                vp.tamanho,
+                vp.quantidade,
+                vp.id_cor,
+                vp.id_produto,
+                vp.id_usuario,
+                vp.data_cadastro,
+                fp.id_foto,
+                fp.url,
+                fp.ordem
+
+            FROM variacao_produto vp
+
+            INNER JOIN fotos_produto fp
+                ON fp.id_produto = vp.id_produto
+                AND fp.id_cor = vp.id_cor
+
+            WHERE vp.id_produto = ?
+            AND vp.id_cor = ?
+
+            ORDER BY vp.tamanho ASC, fp.ordem ASC`,
+
+                [
+                    Number(id_produto),
+                    Number(id_cor)
+                ],
 
                 (error: any, result: any[]) => {
 
@@ -309,7 +342,7 @@ class VariacaoRepository {
                     if (result.length === 0) {
                         return response.status(404).json({
                             sucesso: false,
-                            mensagem: 'Nenhuma variação encontrada para este produto'
+                            mensagem: 'Nenhuma variação encontrada para este produto e esta cor'
                         });
                     }
 
