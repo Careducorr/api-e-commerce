@@ -228,9 +228,27 @@ class ProductRepository {
             }
 
             connection.query(
-                `SELECT *
-             FROM produtos
-             ORDER BY id_produto DESC`,
+                `SELECT 
+                p.id_produto,
+                p.nome_produto,
+                p.descricao,
+                p.preco,
+                p.id_usuario,
+                p.id_marca,
+                c.id_cor,
+                fp.url AS foto_principal
+
+            FROM produtos p
+
+            INNER JOIN cor c
+                ON c.id_produto = p.id_produto
+
+            INNER JOIN fotos_produto fp
+                ON fp.id_cor = c.id_cor
+                AND fp.id_produto = p.id_produto
+                AND fp.ordem = 1
+
+            ORDER BY p.id_produto DESC, c.id_cor ASC`,
 
                 (error: any, result: any[]) => {
 
