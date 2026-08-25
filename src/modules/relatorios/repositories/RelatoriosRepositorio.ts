@@ -12,120 +12,184 @@ class RelatorioRepository {
             // ==========================================
 
             if (err) {
+
                 return response.status(500).json({
+
                     sucesso: false,
+
                     mensagem: 'Erro ao conectar ao banco',
+
                     erro: err.message
+
                 });
+
             }
+
 
             // ==========================================
             // BUSCA RELATÓRIO
             // ==========================================
 
             connection.query(
+
                 `
-                SELECT
-                    p.id_produto,
-                    p.nome_produto AS produto,
-                    m.nome AS marca,
-                    c.nome_cor AS cor,
-                    vp.tamanho,
-                    vp.quantidade AS estoque,
-                    p.preco AS valor,
-                    vp.data_cadastro,
+            SELECT
 
-                    u.id_usuario,
-                    u.nome AS usuario_cadastro,
+                p.id_produto,
 
-                    SUM(vp.quantidade) OVER() AS estoque_total
+                fp.url AS foto_principal,
 
-                FROM variacao_produto vp
+                p.nome_produto AS produto,
 
-                INNER JOIN produtos p
-                    ON p.id_produto = vp.id_produto
+                m.nome AS marca,
 
-                INNER JOIN marcas m
-                    ON m.id_marca = p.id_marca
+                vp.quantidade,
 
-                INNER JOIN cor c
-                    ON c.id_cor = vp.id_cor
+                vp.tamanho,
 
-                INNER JOIN usuarios u
-                    ON u.id_usuario = p.id_usuario
+                p.preco AS valor,
 
-                ORDER BY
-                    m.nome ASC,
-                    p.nome_produto ASC,
-                    c.nome_cor ASC,
-                    vp.tamanho ASC
-                `,
+                c.nome_cor AS cor,
+
+                u.nome AS cadastrado_por
+
+            FROM produtos p
+
+            INNER JOIN marcas m
+                ON m.id_marca = p.id_marca
+
+            INNER JOIN variacao_produto vp
+                ON vp.id_produto = p.id_produto
+
+            INNER JOIN cor c
+                ON c.id_cor = vp.id_cor
+                AND c.id_produto = p.id_produto
+
+            LEFT JOIN fotos_produto fp
+                ON fp.id_produto = p.id_produto
+                AND fp.id_cor = c.id_cor
+                AND fp.ordem = 1
+
+            INNER JOIN usuarios u
+                ON u.id_usuario = p.id_usuario
+
+            ORDER BY
+
+                p.id_produto DESC,
+
+                c.id_cor ASC,
+
+                vp.tamanho ASC;
+
+            `,
+
                 (error: any, result: any[]) => {
 
                     connection.release();
+
 
                     // ==========================================
                     // ERRO NA CONSULTA
                     // ==========================================
 
                     if (error) {
+
                         return response.status(500).json({
+
                             sucesso: false,
+
                             mensagem: 'Erro ao gerar relatório de estoque',
+
                             erro: error.message
+
                         });
+
                     }
+
 
                     // ==========================================
                     // NENHUM RESULTADO
                     // ==========================================
 
-                    if (result.length === 0) {
+                    if (!result || result.length === 0) {
+
                         return response.status(404).json({
+
                             sucesso: false,
+
                             mensagem: 'Nenhuma informação de estoque encontrada'
+
                         });
+
                     }
+
 
                     // ==========================================
                     // ESTOQUE TOTAL
                     // ==========================================
 
-                    const estoqueTotal = Number(
-                        result[0].estoque_total
+                    const estoqueTotal = result.reduce(
+
+                        (total: number, item: any) => {
+
+                            return total + Number(item.quantidade || 0);
+
+                        },
+
+                        0
+
                     );
+
 
                     // ==========================================
                     // MONTA RELATÓRIO
                     // ==========================================
 
                     const relatorio = result.map((item: any) => ({
-                        id_produto: item.id_produto,
-                        produto: item.produto,
-                        marca: item.marca,
-                        cor: item.cor,
-                        tamanho: item.tamanho,
-                        estoque: Number(item.estoque),
-                        valor: Number(item.valor),
-                        data_cadastro: item.data_cadastro,
 
-                        id_usuario: item.id_usuario,
-                        usuario_cadastro: item.usuario_cadastro
+                        id_produto: item.id_produto,
+
+                        foto_principal: item.foto_principal,
+
+                        produto: item.produto,
+
+                        marca: item.marca,
+
+                        quantidade: Number(item.quantidade),
+
+                        tamanho: item.tamanho,
+
+                        valor: Number(item.valor),
+
+                        cor: item.cor,
+
+                        cadastrado_por: item.cadastrado_por
+
                     }));
+
 
                     // ==========================================
                     // RESPOSTA
                     // ==========================================
 
                     return response.status(200).json({
+
                         sucesso: true,
+
                         mensagem: 'Relatório de estoque gerado com sucesso',
+
                         estoque_total: estoqueTotal,
+
                         relatorio: relatorio
+
                     });
+
                 }
+
             );
+
         });
+
     }
 
 
