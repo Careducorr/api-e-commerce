@@ -228,27 +228,49 @@ class ProductRepository {
             }
 
             connection.query(
-                `SELECT 
-                p.id_produto,
-                p.nome_produto,
-                p.descricao,
-                p.preco,
-                p.id_usuario,
-                p.id_marca,
-                c.id_cor,
-                fp.url AS foto_principal
+                `SELECT
+                    p.id_produto,
 
-            FROM produtos p
+                    fp.url AS foto_principal,
 
-            INNER JOIN cor c
-                ON c.id_produto = p.id_produto
+                    p.nome_produto AS produto,
 
-            INNER JOIN fotos_produto fp
-                ON fp.id_cor = c.id_cor
-                AND fp.id_produto = p.id_produto
-                AND fp.ordem = 1
+                    m.nome AS marca,
 
-            ORDER BY p.id_produto DESC, c.id_cor ASC`,
+                    vp.quantidade,
+
+                    vp.tamanho,
+
+                    p.preco AS valor,
+
+                    c.nome_cor AS cor,
+
+                    u.nome AS cadastrado_por
+
+                FROM produtos p
+
+                INNER JOIN marcas m
+                    ON m.id_marca = p.id_marca
+
+                INNER JOIN variacao_produto vp
+                    ON vp.id_produto = p.id_produto
+
+                INNER JOIN cor c
+                    ON c.id_cor = vp.id_cor
+                    AND c.id_produto = p.id_produto
+
+                LEFT JOIN fotos_produto fp
+                    ON fp.id_produto = p.id_produto
+                    AND fp.id_cor = c.id_cor
+                    AND fp.ordem = 1
+
+                INNER JOIN usuarios u
+                    ON u.id_usuario = p.id_usuario
+
+                ORDER BY
+                    p.id_produto DESC,
+                    c.id_cor ASC,
+                    vp.tamanho ASC;`,
 
                 (error: any, result: any[]) => {
 
