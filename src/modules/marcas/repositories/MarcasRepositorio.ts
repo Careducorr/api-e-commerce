@@ -311,9 +311,15 @@ class MarcasRepository {
             }
 
             connection.query(
-                `SELECT *
-             FROM marcas
-             ORDER BY nome ASC`,
+                `SELECT
+                m.id_marca,
+                m.nome,
+                m.id_usuario,
+                u.nome AS nome_usuario
+                FROM marcas m
+                LEFT JOIN usuarios u
+                ON m.id_usuario = u.id_usuario
+                ORDER BY m.nome ASC;`,
 
                 (error: any, result: any[]) => {
 
