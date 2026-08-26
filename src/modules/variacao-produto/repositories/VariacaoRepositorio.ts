@@ -419,154 +419,168 @@ class VariacaoRepository {
     }
 
     // =====================================================
-    // BUSCAR PRODUTOS COM COR, MAS SEM VARIAÇÃO CADASTRADA
-    // =====================================================
+// BUSCAR PRODUTOS COM COR, MAS SEM VARIAÇÃO CADASTRADA
+// =====================================================
 
-    getProdutosSemVariacao(request: Request, response: Response) {
+getProdutosSemVariacao(request: Request, response: Response) {
 
-        pool.getConnection((err: any, connection: any) => {
+    pool.getConnection((err: any, connection: any) => {
 
-            // =====================================================
-            // ERRO AO CONECTAR AO BANCO
-            // =====================================================
+        // =====================================================
+        // ERRO AO CONECTAR AO BANCO
+        // =====================================================
 
-            if (err) {
+        if (err) {
 
-                return response.status(500).json({
+            return response.status(500).json({
 
-                    sucesso: false,
+                sucesso: false,
 
-                    mensagem:
-                        'Erro ao conectar ao banco',
+                mensagem:
+                    'Erro ao conectar ao banco',
 
-                    erro:
-                        err.message
+                erro:
+                    err.message
 
-                });
+            });
 
-            }
+        }
 
 
-            // =====================================================
-            // BUSCAR PRODUTOS
-            // =====================================================
+        // =====================================================
+        // BUSCAR PRODUTOS
+        // =====================================================
 
-            connection.query(
+        connection.query(
 
-                `
-           SELECT
-            p.id_produto,
-            p.nome_produto,
-            p.descricao,
-            p.preco,
-            p.id_marca,
+            `
+            SELECT
+                p.id_produto,
+                p.nome_produto,
+                p.descricao,
+                p.preco,
+                p.id_marca,
 
-            c.id_cor,
-            c.nome_cor,
+                c.id_cor,
+                c.nome_cor,
 
-            fp.id_foto,
-            fp.url AS url_foto_principal,
-            fp.ordem
+                fp.id_foto,
+                fp.url AS url_foto_principal,
+                fp.ordem
 
-        FROM produtos p
+            FROM produtos p
 
-        INNER JOIN cor c
-            ON c.id_produto = p.id_produto
+            INNER JOIN cor c
+                ON c.id_produto = p.id_produto
 
-        LEFT JOIN fotos_produto fp
-            ON fp.id_foto = (
-                SELECT f.id_foto
-                FROM fotos_produto f
-                WHERE f.id_produto = p.id_produto
-                AND f.id_cor = c.id_cor
-                ORDER BY f.ordem ASC
-                LIMIT 1
+            LEFT JOIN fotos_produto fp
+                ON fp.id_foto = (
+
+                    SELECT f.id_foto
+
+                    FROM fotos_produto f
+
+                    WHERE f.id_produto = p.id_produto
+
+                    AND f.id_cor = c.id_cor
+
+                    ORDER BY f.ordem ASC
+
+                    LIMIT 1
+
+                )
+
+            WHERE NOT EXISTS (
+
+                SELECT 1
+
+                FROM variacao_produto v
+
+                WHERE v.id_produto = p.id_produto
+
+                AND v.id_cor = c.id_cor
+
             )
 
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM variacao_produto v
-            WHERE v.id_produto = p.id_produto
-        )
-
-        ORDER BY
-            p.nome_produto ASC,
-            c.nome_cor ASC;
+            ORDER BY
+                p.nome_produto ASC,
+                c.nome_cor ASC;
             `,
 
-                (error: any, result: any[]) => {
+            (error: any, result: any[]) => {
 
-                    // =====================================================
-                    // LIBERAR CONEXÃO
-                    // =====================================================
+                // =====================================================
+                // LIBERAR CONEXÃO
+                // =====================================================
 
-                    connection.release();
-
-
-                    // =====================================================
-                    // ERRO NA CONSULTA
-                    // =====================================================
-
-                    if (error) {
-
-                        return response.status(500).json({
-
-                            sucesso: false,
-
-                            mensagem:
-                                'Erro ao buscar produtos sem variação',
-
-                            erro:
-                                error.message
-
-                        });
-
-                    }
+                connection.release();
 
 
-                    // =====================================================
-                    // NENHUM PRODUTO ENCONTRADO
-                    // =====================================================
+                // =====================================================
+                // ERRO NA CONSULTA
+                // =====================================================
 
-                    if (result.length === 0) {
+                if (error) {
 
-                        return response.status(200).json({
+                    return response.status(500).json({
 
-                            sucesso: true,
+                        sucesso: false,
 
-                            mensagem:
-                                'Nenhum produto sem variação encontrado',
+                        mensagem:
+                            'Erro ao buscar produtos sem variação',
 
-                            produtos: []
+                        erro:
+                            error.message
 
-                        });
+                    });
 
-                    }
+                }
 
 
-                    // =====================================================
-                    // SUCESSO
-                    // =====================================================
+                // =====================================================
+                // NENHUM PRODUTO ENCONTRADO
+                // =====================================================
+
+                if (result.length === 0) {
 
                     return response.status(200).json({
 
                         sucesso: true,
 
                         mensagem:
-                            'Produtos sem variação encontrados com sucesso',
+                            'Nenhum produto sem variação encontrado',
 
-                        produtos:
-                            result
+                        produtos: []
 
                     });
 
                 }
 
-            );
 
-        });
+                // =====================================================
+                // SUCESSO
+                // =====================================================
 
-    };
+                return response.status(200).json({
+
+                    sucesso: true,
+
+                    mensagem:
+                        'Produtos sem variação encontrados com sucesso',
+
+                    produtos:
+                        result
+
+                });
+
+            }
+
+        );
+
+    });
+
+};
+
 }
 
 export { VariacaoRepository };
