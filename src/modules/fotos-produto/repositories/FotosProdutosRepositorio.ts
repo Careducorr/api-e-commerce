@@ -509,6 +509,139 @@ class FotosProdutoRepository {
         });
     }
 
+    /**
+ * Listar produtos sem fotos cadastradas
+ */
+    listarProdutosSemFoto(request: Request, response: Response) {
+
+        pool.getConnection((error, connection) => {
+
+            // =====================================================
+            // ERRO AO CONECTAR AO BANCO
+            // =====================================================
+
+            if (error) {
+
+                return response.status(500).json({
+
+                    sucesso: false,
+
+                    mensagem:
+                        'Erro ao conectar ao banco',
+
+                    erro:
+                        error.message
+
+                });
+
+            }
+
+
+            // =====================================================
+            // BUSCAR PRODUTOS SEM FOTO
+            // =====================================================
+
+            connection.query(
+
+                `
+            SELECT
+                p.id_produto,
+                p.nome_produto,
+                p.descricao,
+                p.preco,
+                p.id_marca
+
+            FROM produtos p
+
+            WHERE NOT EXISTS (
+
+                SELECT 1
+
+                FROM fotos_produto f
+
+                WHERE f.id_produto = p.id_produto
+
+            )
+
+            ORDER BY p.nome_produto ASC
+            `,
+
+                (error: any, result: any[]) => {
+
+                    // =====================================================
+                    // LIBERAR CONEXÃO
+                    // =====================================================
+
+                    connection.release();
+
+
+                    // =====================================================
+                    // ERRO NA CONSULTA
+                    // =====================================================
+
+                    if (error) {
+
+                        return response.status(500).json({
+
+                            sucesso: false,
+
+                            mensagem:
+                                'Erro ao buscar produtos sem foto',
+
+                            erro:
+                                error.message
+
+                        });
+
+                    }
+
+
+                    // =====================================================
+                    // NENHUM PRODUTO ENCONTRADO
+                    // =====================================================
+
+                    if (result.length === 0) {
+
+                        return response.status(200).json({
+
+                            sucesso: true,
+
+                            mensagem:
+                                'Nenhum produto sem foto encontrado',
+
+                            produtos: []
+
+                        });
+
+                    }
+
+
+                    // =====================================================
+                    // SUCESSO
+                    // =====================================================
+
+                    return response.status(200).json({
+
+                        sucesso: true,
+
+                        mensagem:
+                            'Produtos sem foto encontrados com sucesso',
+
+                        produtos:
+                            result
+
+                    });
+
+                }
+
+            );
+
+        });
+
+    };
+
 }
+
+
 
 export { FotosProdutoRepository };

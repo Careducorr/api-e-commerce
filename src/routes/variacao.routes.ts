@@ -43,4 +43,13 @@ variacaoRoutes.delete(
    }
 );
 
+variacaoRoutes.get(
+   '/sem-variacao',
+   authMiddleware,
+   somenteAdmin,
+   (request, response) => {
+      variacaoRepository.getProdutosSemVariacao(request, response);
+   }
+);
+
 export { variacaoRoutes };

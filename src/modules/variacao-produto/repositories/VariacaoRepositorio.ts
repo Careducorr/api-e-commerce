@@ -417,6 +417,156 @@ class VariacaoRepository {
             );
         });
     }
+
+    // =====================================================
+    // BUSCAR PRODUTOS COM COR, MAS SEM VARIAÇÃO CADASTRADA
+    // =====================================================
+
+    getProdutosSemVariacao(request: Request, response: Response) {
+
+        pool.getConnection((err: any, connection: any) => {
+
+            // =====================================================
+            // ERRO AO CONECTAR AO BANCO
+            // =====================================================
+
+            if (err) {
+
+                return response.status(500).json({
+
+                    sucesso: false,
+
+                    mensagem:
+                        'Erro ao conectar ao banco',
+
+                    erro:
+                        err.message
+
+                });
+
+            }
+
+
+            // =====================================================
+            // BUSCAR PRODUTOS
+            // =====================================================
+
+            connection.query(
+
+                `
+           SELECT
+            p.id_produto,
+            p.nome_produto,
+            p.descricao,
+            p.preco,
+            p.id_marca,
+
+            c.id_cor,
+            c.nome_cor,
+
+            fp.id_foto,
+            fp.url AS url_foto_principal,
+            fp.ordem
+
+        FROM produtos p
+
+        INNER JOIN cor c
+            ON c.id_produto = p.id_produto
+
+        LEFT JOIN fotos_produto fp
+            ON fp.id_foto = (
+                SELECT f.id_foto
+                FROM fotos_produto f
+                WHERE f.id_produto = p.id_produto
+                AND f.id_cor = c.id_cor
+                ORDER BY f.ordem ASC
+                LIMIT 1
+            )
+
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM variacao_produto v
+            WHERE v.id_produto = p.id_produto
+        )
+
+        ORDER BY
+            p.nome_produto ASC,
+            c.nome_cor ASC;
+            `,
+
+                (error: any, result: any[]) => {
+
+                    // =====================================================
+                    // LIBERAR CONEXÃO
+                    // =====================================================
+
+                    connection.release();
+
+
+                    // =====================================================
+                    // ERRO NA CONSULTA
+                    // =====================================================
+
+                    if (error) {
+
+                        return response.status(500).json({
+
+                            sucesso: false,
+
+                            mensagem:
+                                'Erro ao buscar produtos sem variação',
+
+                            erro:
+                                error.message
+
+                        });
+
+                    }
+
+
+                    // =====================================================
+                    // NENHUM PRODUTO ENCONTRADO
+                    // =====================================================
+
+                    if (result.length === 0) {
+
+                        return response.status(200).json({
+
+                            sucesso: true,
+
+                            mensagem:
+                                'Nenhum produto sem variação encontrado',
+
+                            produtos: []
+
+                        });
+
+                    }
+
+
+                    // =====================================================
+                    // SUCESSO
+                    // =====================================================
+
+                    return response.status(200).json({
+
+                        sucesso: true,
+
+                        mensagem:
+                            'Produtos sem variação encontrados com sucesso',
+
+                        produtos:
+                            result
+
+                    });
+
+                }
+
+            );
+
+        });
+
+    };
 }
 
 export { VariacaoRepository };

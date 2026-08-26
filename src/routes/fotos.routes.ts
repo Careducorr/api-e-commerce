@@ -42,4 +42,13 @@ fotosRoutes.patch(
     }
 );
 
+fotosRoutes.get(
+    '/listar-sem-foto',
+    authMiddleware,
+    somenteAdmin,
+    (request, response) => {
+        fotosProdutoRepository.listarProdutosSemFoto(request, response);
+    }
+);
+
 export { fotosRoutes };

@@ -286,6 +286,137 @@ class CorRepository {
         });
     };
 
+    /**
+ * Listar produtos que ainda não possuem nenhuma cor cadastrada
+ */
+    listarProdutosSemCor(request: Request, response: Response) {
+
+        pool.getConnection((error, connection) => {
+
+            // ==================================================
+            // ERRO AO CONECTAR AO BANCO
+            // ==================================================
+
+            if (error) {
+
+                return response.status(500).json({
+
+                    sucesso: false,
+
+                    mensagem:
+                        'Erro ao conectar ao banco de dados',
+
+                    erro:
+                        error.message
+
+                });
+
+            }
+
+
+            // ==================================================
+            // BUSCAR PRODUTOS SEM COR
+            // ==================================================
+
+            connection.query(
+
+                `
+            SELECT
+                p.id_produto,
+                p.nome_produto,
+                p.descricao,
+                p.preco,
+                p.id_marca
+
+            FROM produtos p
+
+            WHERE NOT EXISTS (
+
+                SELECT 1
+
+                FROM cor c
+
+                WHERE c.id_produto = p.id_produto
+
+            )
+
+            ORDER BY p.nome_produto ASC
+            `,
+
+                (error: any, result: any[]) => {
+
+                    // ==================================================
+                    // LIBERAR CONEXÃO
+                    // ==================================================
+
+                    connection.release();
+
+
+                    // ==================================================
+                    // ERRO NA CONSULTA
+                    // ==================================================
+
+                    if (error) {
+
+                        return response.status(500).json({
+
+                            sucesso: false,
+
+                            mensagem:
+                                'Erro ao buscar produtos sem cor',
+
+                            erro:
+                                error.message
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // NENHUM PRODUTO ENCONTRADO
+                    // ==================================================
+
+                    if (result.length === 0) {
+
+                        return response.status(200).json({
+
+                            sucesso: true,
+
+                            mensagem:
+                                'Nenhum produto sem cor encontrado',
+
+                            produtos: []
+
+                        });
+
+                    }
+
+
+                    // ==================================================
+                    // SUCESSO
+                    // ==================================================
+
+                    return response.status(200).json({
+
+                        sucesso: true,
+
+                        mensagem:
+                            'Produtos sem cor encontrados com sucesso',
+
+                        produtos:
+                            result
+
+                    });
+
+                }
+
+            );
+
+        });
+
+    };
+
 }
 
 

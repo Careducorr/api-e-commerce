@@ -40,4 +40,13 @@ corRoutes.delete(
     }
 );
 
+corRoutes.get(
+    '/produtos-sem-cor',
+    authMiddleware,
+    somenteAdmin,
+    (request, response) => {
+        return corRepository.listarProdutosSemCor(request, response)
+    }
+);
+
 export { corRoutes };
