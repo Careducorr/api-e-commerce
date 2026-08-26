@@ -49,4 +49,13 @@ corRoutes.get(
     }
 );
 
+corRoutes.get(
+    '/cores-sem-foto/:id_produto',
+    authMiddleware,
+    somenteAdmin,
+    (request, response) => {
+        return corRepository.listarCoresProduto(request, response)
+    }
+);
+
 export { corRoutes };

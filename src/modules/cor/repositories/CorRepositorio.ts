@@ -417,6 +417,165 @@ class CorRepository {
 
     };
 
+    /**
+ * Listar cores de um produto que ainda não possuem fotos
+ */
+    listarCoresProduto(request: Request, response: Response) {
+
+        const { id_produto } = request.params;
+
+
+        // =====================================================
+        // VALIDAR ID DO PRODUTO
+        // =====================================================
+
+        if (!id_produto) {
+
+            return response.status(400).json({
+
+                sucesso: false,
+
+                mensagem:
+                    'ID do produto não informado'
+
+            });
+
+        }
+
+
+        pool.getConnection((error, connection) => {
+
+            // =====================================================
+            // ERRO AO CONECTAR AO BANCO
+            // =====================================================
+
+            if (error) {
+
+                return response.status(500).json({
+
+                    sucesso: false,
+
+                    mensagem:
+                        'Erro ao conectar ao banco',
+
+                    erro:
+                        error.message
+
+                });
+
+            }
+
+
+            // =====================================================
+            // BUSCAR CORES SEM FOTO
+            // =====================================================
+
+            connection.query(
+
+                `
+            SELECT
+                c.id_cor,
+                c.nome_cor,
+                c.id_produto
+
+            FROM cor c
+
+            WHERE c.id_produto = ?
+
+            AND NOT EXISTS (
+
+                SELECT 1
+
+                FROM fotos_produto f
+
+                WHERE f.id_produto = c.id_produto
+
+                AND f.id_cor = c.id_cor
+
+            )
+
+            ORDER BY
+                c.nome_cor ASC
+            `,
+
+                [id_produto],
+
+                (error: any, result: any[]) => {
+
+                    // =====================================================
+                    // LIBERAR CONEXÃO
+                    // =====================================================
+
+                    connection.release();
+
+
+                    // =====================================================
+                    // ERRO NA CONSULTA
+                    // =====================================================
+
+                    if (error) {
+
+                        return response.status(500).json({
+
+                            sucesso: false,
+
+                            mensagem:
+                                'Erro ao buscar cores sem foto',
+
+                            erro:
+                                error.message
+
+                        });
+
+                    }
+
+
+                    // =====================================================
+                    // NENHUMA COR SEM FOTO
+                    // =====================================================
+
+                    if (result.length === 0) {
+
+                        return response.status(404).json({
+
+                            sucesso: false,
+
+                            mensagem:
+                                'Este produto não possui cores sem foto',
+
+                            cores: []
+
+                        });
+
+                    }
+
+
+                    // =====================================================
+                    // SUCESSO
+                    // =====================================================
+
+                    return response.status(200).json({
+
+                        sucesso: true,
+
+                        mensagem:
+                            'Cores sem foto encontradas com sucesso',
+
+                        cores:
+                            result
+
+                    });
+
+                }
+
+            );
+
+        });
+
+    };
+
+
+
 }
 
 

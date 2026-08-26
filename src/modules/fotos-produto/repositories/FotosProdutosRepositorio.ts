@@ -510,8 +510,8 @@ class FotosProdutoRepository {
     }
 
     /**
- * Listar produtos sem fotos cadastradas
- */
+    * Listar produtos que possuem pelo menos uma cor sem nenhuma foto
+    */
     listarProdutosSemFoto(request: Request, response: Response) {
 
         pool.getConnection((error, connection) => {
@@ -538,13 +538,13 @@ class FotosProdutoRepository {
 
 
             // =====================================================
-            // BUSCAR PRODUTOS SEM FOTO
+            // BUSCAR PRODUTOS COM ALGUMA COR SEM FOTO
             // =====================================================
 
             connection.query(
 
                 `
-            SELECT
+            SELECT DISTINCT
                 p.id_produto,
                 p.nome_produto,
                 p.descricao,
@@ -552,6 +552,9 @@ class FotosProdutoRepository {
                 p.id_marca
 
             FROM produtos p
+
+            INNER JOIN cor c
+                ON c.id_produto = p.id_produto
 
             WHERE NOT EXISTS (
 
@@ -561,9 +564,12 @@ class FotosProdutoRepository {
 
                 WHERE f.id_produto = p.id_produto
 
+                AND f.id_cor = c.id_cor
+
             )
 
-            ORDER BY p.nome_produto ASC
+            ORDER BY
+                p.nome_produto ASC
             `,
 
                 (error: any, result: any[]) => {
@@ -586,7 +592,7 @@ class FotosProdutoRepository {
                             sucesso: false,
 
                             mensagem:
-                                'Erro ao buscar produtos sem foto',
+                                'Erro ao buscar produtos com cores sem foto',
 
                             erro:
                                 error.message
@@ -607,7 +613,7 @@ class FotosProdutoRepository {
                             sucesso: true,
 
                             mensagem:
-                                'Nenhum produto sem foto encontrado',
+                                'Nenhum produto com cor sem foto encontrado',
 
                             produtos: []
 
@@ -625,7 +631,7 @@ class FotosProdutoRepository {
                         sucesso: true,
 
                         mensagem:
-                            'Produtos sem foto encontrados com sucesso',
+                            'Produtos com cores sem foto encontrados com sucesso',
 
                         produtos:
                             result
